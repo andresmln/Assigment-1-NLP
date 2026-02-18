@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import numpy as np
+import math
+from sklearn.metrics import multilabel_confusion_matrix
 
 def plot_class_distribution(df, label_cols, title="Class Distribution"):
     """
@@ -37,8 +39,6 @@ def plot_class_distribution(df, label_cols, title="Class Distribution"):
     plt.tight_layout()
     plt.show()
 
-
-
 def display_random_examples(df, n=5, label_cols=None):
     """
     Prints random examples with their active labels.
@@ -68,8 +68,6 @@ def display_random_examples(df, n=5, label_cols=None):
             print("   (No values annotated)")
             
         print("=" * 80 + "\n")
-
-
 
 def plot_stratification_check(y_train, y_test, label_cols, filename="stratification_check.png"):
     """
@@ -104,6 +102,14 @@ def plot_stratification_check(y_train, y_test, label_cols, filename="stratificat
     ax1.set_ylabel('Prevalence (0.0 - 1.0)', fontsize=12)
     ax1.set_xlabel('')
     ax1.set_xticklabels([])
+    
+    sns.barplot(data=df_melted, x='Label', y='Prevalence', hue='Dataset', 
+                palette=['#2c3e50', '#e74c3c'], ax=ax1)
+    
+    ax1.set_title('Stratification Verification: Train vs. Validation Distribution', fontsize=16, fontweight='bold')
+    ax1.set_ylabel('Prevalence (0.0 - 1.0)', fontsize=12)
+    ax1.set_xlabel('')
+    ax1.set_xticklabels([])
     ax1.legend(title='Split', fontsize=12)
     ax1.grid(axis='y', linestyle='--', alpha=0.5)
 
@@ -123,6 +129,112 @@ def plot_stratification_check(y_train, y_test, label_cols, filename="stratificat
     mean_error = np.mean(np.abs(strat_df['Difference']))
     plt.figtext(0.5, 0.01, f"Mean Absolute Deviation: {mean_error:.5f} (Lower is Better)", 
                 ha="center", fontsize=12, bbox={"facecolor":"white", "alpha":0.5, "pad":5})
+
+    plt.tight_layout()
+    if filename:
+        plt.savefig(filename, dpi=300)
+    plt.show()
+
+
+# src/visualization.py (append this)
+import math
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.metrics import multilabel_confusion_matrix
+
+def plot_multilabel_confusion(y_true, y_pred, class_names, filename="confusion_matrix.png"):
+    """
+    Plots a grid of normalized confusion matrices for each class.
+    """
+    mcm = multilabel_confusion_matrix(y_true, y_pred)
+    
+    num_classes = len(class_names)
+    cols = 4
+    rows = math.ceil(num_classes / cols)
+
+    fig, axes = plt.subplots(rows, cols, figsize=(24, 5 * rows))
+    axes = axes.flatten()
+
+    for i, (matrix, name) in enumerate(zip(mcm, class_names)):
+        # Normalize by row (True Label) to show Recall vs Specificity
+        row_sums = matrix.sum(axis=1)[:, np.newaxis]
+        # Add epsilon to prevent division by zero
+        normalized_matrix = matrix.astype('float') / (row_sums + 1e-10)
+
+        sns.heatmap(normalized_matrix, annot=True, fmt='.1%', cmap='Blues', ax=axes[i],
+                    xticklabels=['Pred: No', 'Pred: Yes'], 
+                    yticklabels=['True: No', 'True: Yes'],
+                    cbar=False, vmin=0, vmax=1)
+        
+        axes[i].set_title(f'{name}', fontweight='bold', fontsize=14)
+        axes[i].set_ylabel('True Label', fontsize=10)
+        axes[i].set_xlabel('Predicted Label', fontsize=10)
+
+    # Remove empty subplots
+    for j in range(i + 1, len(axes)):
+        fig.delaxes(axes[j])
+
+    plt.tight_layout()
+    if filename:
+        plt.savefig(filename, dpi=300)
+    plt.show()
+    ax1.legend(title='Split', fontsize=12)
+    ax1.grid(axis='y', linestyle='--', alpha=0.5)
+
+    # --- BOTTOM PLOT: Residuals (The Error) ---
+    sns.barplot(data=strat_df, x='Label', y='Difference', color='purple', ax=ax2)
+    
+    ax2.axhline(0, color='black', linewidth=1)
+    ax2.set_title('Deviation (Train - Val)', fontsize=14, fontweight='bold')
+    ax2.set_ylabel('Difference', fontsize=12)
+    ax2.set_xlabel('Human Value Label', fontsize=12)
+    
+    # Rotate labels for readability
+    ax2.set_xticklabels(strat_df['Label'], rotation=45, ha='right')
+    ax2.grid(axis='y', linestyle='--', alpha=0.5)
+
+    # Add Error Metric
+    mean_error = np.mean(np.abs(strat_df['Difference']))
+    plt.figtext(0.5, 0.01, f"Mean Absolute Deviation: {mean_error:.5f} (Lower is Better)", 
+                ha="center", fontsize=12, bbox={"facecolor":"white", "alpha":0.5, "pad":5})
+
+    plt.tight_layout()
+    if filename:
+        plt.savefig(filename, dpi=300)
+    plt.show()
+
+def plot_multilabel_confusion(y_true, y_pred, class_names, filename="confusion_matrix.png"):
+    """
+    Plots a grid of normalized confusion matrices for each class.
+    """
+    mcm = multilabel_confusion_matrix(y_true, y_pred)
+    
+    num_classes = len(class_names)
+    cols = 4
+    rows = math.ceil(num_classes / cols)
+
+    fig, axes = plt.subplots(rows, cols, figsize=(24, 5 * rows))
+    axes = axes.flatten()
+
+    for i, (matrix, name) in enumerate(zip(mcm, class_names)):
+        # Normalize by row (True Label) to show Recall vs Specificity
+        row_sums = matrix.sum(axis=1)[:, np.newaxis]
+        # Add epsilon to prevent division by zero
+        normalized_matrix = matrix.astype('float') / (row_sums + 1e-10)
+
+        sns.heatmap(normalized_matrix, annot=True, fmt='.1%', cmap='Blues', ax=axes[i],
+                    xticklabels=['Pred: No', 'Pred: Yes'], 
+                    yticklabels=['True: No', 'True: Yes'],
+                    cbar=False, vmin=0, vmax=1)
+        
+        axes[i].set_title(f'{name}', fontweight='bold', fontsize=14)
+        axes[i].set_ylabel('True Label', fontsize=10)
+        axes[i].set_xlabel('Predicted Label', fontsize=10)
+
+    # Remove empty subplots
+    for j in range(i + 1, len(axes)):
+        fig.delaxes(axes[j])
 
     plt.tight_layout()
     if filename:
